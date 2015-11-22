@@ -1,16 +1,16 @@
 # luvit-request
 Another light-weight progressive request library crafted for flexibility, readability, and a low learning curve.
 
-# Install
+## Install
 
-## Via [lit](https://github.com/luvit/lit/)
+Via [lit](https://github.com/luvit/lit/)
 ```bash
 lit install cyrilis/request
 ```
 
-# Getting start
+## Getting start
 ```lua
-local request  = require("./request")
+local request  = require("request")
 request.post("https://api.abc.com/v1/test")
 :set("Content-Type", "application/x-www-form-urlencoded")
 :send({ foo = "bar" })
@@ -24,49 +24,57 @@ request.post("https://api.abc.com/v1/test")
 end)
 ```
 
-# Usage
-### request:new(options)
+## Usage
+ - ####`request:new(options)`
+
 	init a request instance with `:new` method or `:get`, `:post`, `:put`, ":delete"
+	```lua
+	local url = "http://example.com/"
+	local req = request:new({url = url, method = "GET"})
+	
+	-- `local req = request:get(url)` 
+	-- `local req = request:post(url)` 
+	-- `local req = request:put(url)` 
+	-- `local req = request:delete(url)`
+	```
+	
+- ####`req:set(key, value)`
 
-```lua
-local url = "http://example.com/"
-local req = request:new({url = url, method = "GET"})
-
--- `local req = request:get(url)` 
--- `local req = request:post(url)` 
--- `local req = request:put(url)` 
--- `local req = request:delete(url)`
-```
-
-###`req:set(key, value)`
 	Set request headers
 
-###`req:type(type)`
+- ####`req:type(type)`
+
 	Set request headers for "Content-Type"
 	type: ["html", "json", "xml", "urlencoded", "form", "form-data"]
 
-###`req:accept(type)`
+- ####`req:accept(type)`
+
 	Set request headers for "Accept"
 
-###`req:query(queryTable)`
+- ####`req:query(queryTable)`
+
 	Pass query parameter to request, queryTable is a key-value table, `req:query({page = "2"})`
 
-###`req:send(dataTable)`
+- ####`req:send(dataTable)`
+
 	pass post data to request, dataTable is a key-value table, `req:send({title = "Hello world!"})`
 
-###`:auth(username, password)`
+- ####`:auth(username, password)`
+
 	Pass `username` and `password` for basic auth.
 
-###`:done(callback)`
+- ####`:done(callback)`
+
 	Callback after request is done and got the response content.  two params will pass to callback function: `error` and `res`
 	
 	`res` is a httpResponse.
 	The `res.text` property contains the unparsed response body string. This property is always present for the client API,
 	When a parser is defined for the Content-Type, it is parsed, which by default includes "application/json" and "application/x-www-form-urlencoded". The parsed object is then available via `res.body`.
 
-### Error handling
-	req:on("error", handler)
+- ####Error handling
 
+	`req:on("error", handler)`
+	`handler` is a callback function, will pass `error` as the only param to it.
 
 # Simple Usage
 
@@ -79,7 +87,7 @@ local req = request:new({url = url, method = "GET"})
 -- Email: houshoushuai@gmail.com
 --
 
-local request  = require("./request")
+local request  = require("request")
 
 Mail = require("core").Object:extend()
 
