@@ -183,6 +183,8 @@ function Request:done(callback)
             local contentType = helper.split(res.headers["Content-Type"], ";")[1]
             if contentType == BaseTypes['json'] then
                 bodyObj = JSON.parse(data)
+            elseif contentType == BaseTypes['form'] then
+                bodyObj = qs.parse(data)
             end
             res.body = bodyObj
             res.text = data
