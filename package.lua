@@ -10,10 +10,12 @@ return {
     dependencies = {
         "luvit/require",
         "luvit/pretty-print",
+        "luvit/http",
+        "luvit/https",
+        "luvit/json"
     },
     files = {
         "**.*",
-        "!request"
         "!test*",
         "!.DS_Store",
         "!.git/*",
