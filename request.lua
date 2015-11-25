@@ -8,7 +8,6 @@ http = require("http")
 https = require("https")
 JSON = require("json")
 string = require("string")
-local sub, find, match, gsub, gmatch, byte, char, format = string.sub, string.find, string.match, string.gsub, string.gmatch, string.byte, string.char, string.format
 
 local qs = require('querystring')
 
@@ -16,6 +15,7 @@ local base64_table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
 local sub  = string.sub
 local gsub = string.gsub
 local byte = string.byte
+local find = string.find
 local base64 = function(data)
     return ((gsub(data, '.', function(x)
         local r, b = '', byte(x)
@@ -111,11 +111,6 @@ function Request:initialize (options, callback)
     return self
 end
 
-function Request:on(eventName, eventFunction)
-    self._EVTS[eventName] = eventFunction
-    return self
-end
-
 function Request:set(key, value)
     table.insert(self.option.headers, {key, value})
     return self
@@ -171,7 +166,6 @@ function Request:pipe(fd, callback)
     self.callback = callback or self.callback
     if self._isCalled then return false end
     self.client = self._request(self.option, function(res)
-        p('STATUS: ' .. res.statusCode);
         self._isCalled = true
         res:pipe(fd)
         res:on("end", function()
@@ -195,7 +189,6 @@ function Request:done(callback)
     self.callback = callback or self.callback
     if self._isCalled then return false end
     self.client = self._request(self.option, function(res)
-        p('STATUS: ' .. res.statusCode);
         local data = ""
         res:on("data", function(chunk)
             data = data .. chunk
