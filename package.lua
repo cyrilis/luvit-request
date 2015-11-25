@@ -1,6 +1,6 @@
 return {
     name = "cyrilis/request",
-    version = "0.0.1",
+    version = "0.0.2",
     homepage = "https://github.com/cyrilis/luvit-request",
     description = "Another light-weight progressive request library crafted for flexibility, readability, and a low learning curve.",
     tags = {"luvit", "request", "networks"},
