@@ -167,6 +167,30 @@ function Request:auth(user, pass)
     return self
 end
 
+function Request:pipe(fd, callback)
+    self.callback = callback or self.callback
+    if self._isCalled then return false end
+    self.client = self._request(self.option, function(res)
+        p('STATUS: ' .. res.statusCode);
+        self._isCalled = true
+        res:pipe(fd)
+        res:on("end", function()
+            self.callback()
+        end)
+    end)
+
+    self.client:on("error", function(error)
+        self.callback(error)
+        self._isCalled = true
+        self:emit("error", error)
+    end)
+    if self.option.method ~= "GET" and self.option.method ~= "HEAD" then
+        if self.postData then self.client:write(self.postData) end
+    end
+    self.client:done();
+    return self
+end
+
 function Request:done(callback)
     self.callback = callback or self.callback
     if self._isCalled then return false end
