@@ -6,8 +6,7 @@
 
 http = require("http")
 https = require("https")
-JSON = require("json")
-string = require("string")
+local JSON = require("json")
 
 local qs = require('querystring')
 
@@ -15,7 +14,6 @@ local base64_table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
 local sub  = string.sub
 local gsub = string.gsub
 local byte = string.byte
-local find = string.find
 local base64 = function(data)
     return ((gsub(data, '.', function(x)
         local r, b = '', byte(x)
@@ -47,31 +45,6 @@ _G.map = function(t, f)
     return r
 end
 
-local split = function(str, sep, nmax)
-    if sep == nil then
-        sep = '%s+'
-    end
-    local r = { }
-    if #str <= 0 then
-        return r
-    end
-    local plain = false
-    nmax = nmax or -1
-    local nf = 1
-    local ns = 1
-    local nfr, nl = find(str, sep, ns, plain)
-    while nfr and nmax ~= 0 do
-        r[nf] = sub(str, ns, nfr - 1)
-        nf = nf + 1
-        ns = nl + 1
-        nmax = nmax - 1
-        nfr, nl = find(str, sep, ns, plain)
-    end
-    r[nf] = sub(str, ns)
-    return r
-end
-
-
 BaseTypes = {
     ["html"] = 'text/html',
     ["json"] = 'application/json',
@@ -82,11 +55,16 @@ BaseTypes = {
 };
 
 Emitter = require('core').Emitter
+
 Request = Emitter:extend()
+
+-- Default User agent , can be changed by user.
+Request.defaultUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36"
+
 function Request:initialize (options, callback)
-    self.options = options or {}
+    options = options or {}
     self.callback = callback or function() end
-    local URL = require("url").parse(self.options.url)
+    local URL = require("url").parse(options.url)
     local defaultPort = 80
     self._request = http.request
     if URL.protocol == "https" then
@@ -98,11 +76,11 @@ function Request:initialize (options, callback)
         host =  URL.hostname,
         port = URL.port or defaultPort,
         path = URL.path,
-        method = self.options.method and self.options.method:upper() or "GET",
-        headers = self.options.headers or {}
+        method = options.method and options.method:upper() or "GET",
+        headers = options.headers or {}
     }
 
-    table.insert(self.option.headers, {"connection", "keep-alive"})
+    self:set("connection", "keep-alive")
 
     if URL.auth then
         local user, pass = URL.auth:match("([^:]+):([^:]+)")
@@ -111,13 +89,33 @@ function Request:initialize (options, callback)
     return self
 end
 
+--function Request:on(eventName, eventFunction)
+--    self._EVTS[eventName] = eventFunction
+--    return self
+--end
+
 function Request:set(key, value)
-    table.insert(self.option.headers, {key, value})
+    self.option.headers[key] = value
     return self
 end
 
 function Request:type(type)
     self:set("Content-Type", BaseTypes[type] or type)
+    return self
+end
+
+function Request:proxy(ip, port)
+    self.option.path = self.option.protocol .."://" .. self.option.host .. (self.option.port == 80 and "" or (":" .. self.option.port)) .. self.option.path
+    self:set("Host", self.option.host)
+    local defaultPort = 80
+    if self.option.protocol == "https" then
+        defaultPort = 443
+    end
+    self.option.host = ip
+    self.option.port = port or defaultPort
+    self.option.protocol = "http"
+    self._request = http.request
+    p(self.option)
     return self
 end
 
@@ -127,10 +125,7 @@ function Request:accept(type)
 end
 
 function Request:query(query)
-    local queryArray = map(query, function(key, value)
-        return key .. "=" .. value
-    end)
-    local querystring = table.concat(queryArray, "&")
+    local queryString = qs.stringify(query)
     local url = require("url").parse(self.option.path)
     local oldQuery = url.query
     if not(oldQuery) then
@@ -138,19 +133,20 @@ function Request:query(query)
     else
         oldQuery = oldQuery .. "&"
     end
-    self.option.path = url.pathname .. "?" .. oldQuery .. querystring
+    self.option.path = url.pathname .. "?" .. oldQuery .. queryString
     return self
 end
 
 function Request:send(data)
 --    self.option.headers["Content-Type"] = "application/x-www-form-urlencoded"
     if self.option.method == "GET" or self.option.method == "HEAD" then
+        l("Request Method (" .. self.option.method .. ") can't use :send()")
         return false
     end
     self.data = data
     self.postData = qs.stringify(self.data)
 
-    table.insert(self.option.headers, {"Content-Length", #self.postData})
+    self:set("Content-Length", #self.postData)
 
     --    if ('HEAD' != options.method) req.setHeader('Accept-Encoding', 'gzip, deflate');
     return self
@@ -158,18 +154,32 @@ end
 
 function Request:auth(user, pass)
     local str = base64(user .. ":" .. pass)
-    table.insert(self.option.headers, {"Authorization", "Basic "..str})
+    self:set("Authorization", "Basic "..str)
     return self
 end
 
 function Request:pipe(fd, callback)
     self.callback = callback or self.callback
     if self._isCalled then return false end
+
+    local hasUA = false
+    if self.option.headers["User-Agent"] then
+        hasUA = true
+    end
+
+    if not(hasUA) then
+        self:set("User-Agent", Request.defaultUserAgent)
+    end
+
     self.client = self._request(self.option, function(res)
         self._isCalled = true
         res:pipe(fd)
         res:on("end", function()
             self.callback()
+        end)
+        res:on("error", function(err)
+            l(err)
+            self.callback(err)
         end)
     end)
 
@@ -185,9 +195,18 @@ function Request:pipe(fd, callback)
     return self
 end
 
+
 function Request:done(callback)
     self.callback = callback or self.callback
     if self._isCalled then return false end
+    local hasUA = false
+    if self.option.headers["User-Agent"] then
+        hasUA = true
+    end
+    if not(hasUA) then
+        self:set("User-Agent", Request.defaultUserAgent)
+    end
+    p(self.option)
     self.client = self._request(self.option, function(res)
         local data = ""
         res:on("data", function(chunk)
@@ -197,11 +216,10 @@ function Request:done(callback)
             chunk  = chunk or ""
             data = data .. chunk
             local bodyObj
-            local contentType = split(res.headers["Content-Type"], ";")[1]
+            local contentType = res.headers["Content-Type"]
+            contentType = contentType and contentType:gsub(";.*", "")
             if contentType == BaseTypes['json'] then
                 bodyObj = JSON.parse(data)
-            elseif contentType == BaseTypes['form'] then
-                bodyObj = qs.parse(data)
             end
             res.body = bodyObj
             res.text = data
@@ -217,9 +235,14 @@ function Request:done(callback)
     end)
 
     if self.option.method ~= "GET" and self.option.method ~= "HEAD" then
-        if self.postData then self.client:write(self.postData) end
+        local contentType = (self.option.headers["Content-Type"] or BaseTypes["form"]):gsub(";.*", "")
+        if contentType == BaseTypes["json"] then
+            l("POSTing DATA:", self.data)
+            self.client:write(JSON.stringify(self.data or {}))
+        else
+            if self.postData then self.client:write(self.postData) end
+        end
     end
-
     self.client:done();
     return self
 end
