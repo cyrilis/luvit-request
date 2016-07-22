@@ -264,3 +264,5 @@ module.exports = {
         return Request:new({url = url, method = "DELETE"})
     end
 }
+
+return module.exports
